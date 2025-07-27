@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <title>Update WiFi Area Kerja</title>
+  <style>
+    :root {
+      --bg: #eef2f5; --card-bg: #fff; --primary: #3498db;
+      --text: #222; --text-secondary: #555; --radius: 8px;
+      --shadow: rgba(0,0,0,0.1); --shadow-hover: rgba(0,0,0,0.15);
+      --spinner-bg: #ddd;
+    }
+    body {
+      margin: 0; padding: 50px;
+      font-family: Arial, sans-serif;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center;
+      /* Gambar background dari Google Drive */
+      background: var(--bg);
+      position: relative;
+      z-index: 1;
+    }
+    /* Overlay background image menggunakan ::before */
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      z-index: -1;
+      background: url('https://drive.google.com/uc?export=view&id=1XGRgY9ibnP6wXBDgdhw6X40ytC2_5Ogu') no-repeat center center fixed;
+      background-size: cover;
+      opacity: 0.6;
+      /* Ubah opacity sesuai selera */
+    }
+    .grid-container {
+      display: grid;
+      grid-template-columns: repeat(2,1fr);
+      gap: 20px;
+      width: 600px;
+    }
+    .card {
+      background: var(--card-bg);
+      border-radius: var(--radius);
+      box-shadow: 0 2px 8px var(--shadow);
+      padding: 20px; text-align: center;
+      transition: transform .2s, box-shadow .2s;
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 16px var(--shadow-hover);
+    }
+    .label {
+      font-weight: bold; color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+    .value {
+      font-size: 1.2em; color: var(--text);
+      word-break: break-all; min-height: 40px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .spinner {
+      width: 24px; height: 24px;
+      border: 3px solid var(--spinner-bg);
+      border-top: 3px solid var(--primary);
+      border-radius: 50%; animation: spin 1s linear infinite;
+    }
+    @keyframes spin { to {transform: rotate(360deg);} }
+    #refresh-btn {
+      margin-top: 20px; padding: 10px 20px;
+      background: var(--primary); color: #fff;
+      border: none; border-radius: var(--radius);
+      cursor: pointer; transition: filter .2s;
+    }
+    #refresh-btn:hover { filter: brightness(0.9); }
+  </style>
+</head>
+<body>
+  <div class="grid-container">
+    <div class="card">
+      <div class="label">Nama WiFi </div>
+      <div id="ssid1-val" class="value"><div class="spinner"></div></div>
+    </div>
+    <div class="card">
+      <div class="label">Password </div>
+      <div id="pass1-val" class="value"><div class="spinner"></div></div>
+    </div>
+    <div class="card">
+      <div class="label">Nama WiFi </div>
+      <div id="ssid2-val" class="value"><div class="spinner"></div></div>
+    </div>
+    <div class="card">
+      <div class="label">Password </div>
+      <div id="pass2-val" class="value"><div class="spinner"></div></div>
+    </div>
+  </div>
+  <button id="refresh-btn">Refresh</button>
+
+  <script>
+    const SPREADSHEET_ID = '1djYZItSsewkZ2C-qoi7zRBvswEwFI9DFh_Y_faa7uUg';
+    const SHEET_NAME     = 'Sheet1';
+
+    const elems = {
+      ssid1: document.getElementById('ssid1-val'),
+      pass1: document.getElementById('pass1-val'),
+      ssid2: document.getElementById('ssid2-val'),
+      pass2: document.getElementById('pass2-val'),
+    };
+
+    document.getElementById('refresh-btn').addEventListener('click', fetchData);
+    fetchData();  // load pertama
+
+    function fetchData() {
+      // hapus script JSONP sebelumnya
+      document.querySelectorAll('script.jsonp').forEach(s => s.remove());
+
+      // reset spinner
+      Object.values(elems).forEach(el => {
+        el.innerHTML = '<div class="spinner"></div>';
+      });
+
+      // bangun URL JSONP: pakai sheet= bukan gid=
+      const q = encodeURIComponent('select A, B limit 2');
+      const url =
+        `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq`
+        + `?sheet=${SHEET_NAME}`
+        + `&tq=${q}`
+        + `&tqx=out:json;responseHandler:handleResponse`;
+
+      const s = document.createElement('script');
+      s.src = url;
+      s.className = 'jsonp';
+      document.body.appendChild(s);
+    }
+
+    function handleResponse(raw) {
+      // flatten payload kalau dikemas di array
+      const data = raw.table
+        ? raw
+        : (Array.isArray(raw) && raw[0].table ? raw[0] : null);
+
+      if (!data || data.status === 'error' || !data.table) {
+        return setErrorAll('Gagal memuat');
+      }
+
+      const rows = data.table.rows || [];
+
+      if (rows.length === 0) {
+        return setErrorAll('Data kosong');
+      }
+
+      // helper aman
+      function getVal(r, i) {
+        return r && r.c && r.c[i] && r.c[i].v != null
+          ? r.c[i].v
+          : '';
+      }
+
+      // isi area 1
+      elems.ssid1.textContent = getVal(rows[0], 0);
+      elems.pass1.textContent = getVal(rows[0], 1);
+
+      // isi area 2 kalau ada
+      if (rows[1]) {
+        elems.ssid2.textContent = getVal(rows[1], 0);
+        elems.pass2.textContent = getVal(rows[1], 1);
+      } else {
+        elems.ssid2.textContent = '';
+        elems.pass2.textContent = '';
+      }
+    }
+
+    function setErrorAll(msg) {
+      Object.values(elems).forEach(el => el.textContent = msg);
+    }
+
+    window.handleResponse = handleResponse;
+  </script>
+</body>
+</html>
