@@ -2,6 +2,8 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
+  <!-- Tambahkan meta viewport agar fit di layar HP tanpa zoom -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Update WiFi Area Kerja</title>
   <style>
     :root {
@@ -96,9 +98,7 @@
     }
     #refresh-btn:hover { filter: brightness(0.9); }
     .refresh-wrap {
-      display: flex;
-      justify-content: center;
-      width: 100%;
+      display: flex; justify-content: center; width: 100%;
     }
     @media (max-width: 500px) {
       .grid-container {
@@ -141,68 +141,48 @@
   <script>
     const SPREADSHEET_ID = '1djYZItSsewkZ2C-qoi7zRBvswEwFI9DFh_Y_faa7uUg';
     const SHEET_NAME     = 'Sheet1';
-
     const elems = {
       ssid1: document.getElementById('ssid1-val'),
       pass1: document.getElementById('pass1-val'),
       ssid2: document.getElementById('ssid2-val'),
       pass2: document.getElementById('pass2-val'),
     };
-
     document.getElementById('refresh-btn').addEventListener('click', fetchData);
-    fetchData();  // load pertama
-
+    fetchData();
     function fetchData() {
-      // hapus script JSONP sebelumnya
       document.querySelectorAll('script.jsonp').forEach(s => s.remove());
-
-      // reset spinner
       Object.values(elems).forEach(el => {
         el.innerHTML = '<div class="spinner"></div>';
       });
-
-      // bangun URL JSONP: pakai sheet= bukan gid=
       const q = encodeURIComponent('select A, B limit 2');
       const url =
         `https://docs.google.com/spreadsheets/d/${SPREADSHEET_ID}/gviz/tq`
         + `?sheet=${SHEET_NAME}`
         + `&tq=${q}`
         + `&tqx=out:json;responseHandler:handleResponse`;
-
       const s = document.createElement('script');
       s.src = url;
       s.className = 'jsonp';
       document.body.appendChild(s);
     }
-
     function handleResponse(raw) {
-      // flatten payload kalau dikemas di array
       const data = raw.table
         ? raw
         : (Array.isArray(raw) && raw[0].table ? raw[0] : null);
-
       if (!data || data.status === 'error' || !data.table) {
         return setErrorAll('Gagal memuat');
       }
-
       const rows = data.table.rows || [];
-
       if (rows.length === 0) {
         return setErrorAll('Data kosong');
       }
-
-      // helper aman
       function getVal(r, i) {
         return r && r.c && r.c[i] && r.c[i].v != null
           ? r.c[i].v
           : '';
       }
-
-      // isi area 1
       elems.ssid1.textContent = getVal(rows[0], 0);
       elems.pass1.textContent = getVal(rows[0], 1);
-
-      // isi area 2 kalau ada
       if (rows[1]) {
         elems.ssid2.textContent = getVal(rows[1], 0);
         elems.pass2.textContent = getVal(rows[1], 1);
@@ -211,11 +191,9 @@
         elems.pass2.textContent = '';
       }
     }
-
     function setErrorAll(msg) {
       Object.values(elems).forEach(el => el.textContent = msg);
     }
-
     window.handleResponse = handleResponse;
   </script>
 </body>
